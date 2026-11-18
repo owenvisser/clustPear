@@ -1,0 +1,21 @@
+Package: clustPear
+Type: Package
+Title: Cluster-Weighted Pearson Correlations with Subgroup-Aware Estimators
+Version: 0.1.2
+Authors@R: person("Package", "Maintainer", email = "maintainer@example.org", role = c("aut", "cre"))
+Description: Estimates ordinary pooled, cluster-weighted, quantile-grid, and
+    rank-averaged Pearson correlations from paired clustered observations.
+    Reports independent-cluster sandwich standard errors and approximate
+    confidence intervals, with fixed-cutpoint inference for quantile-grid and
+    rank-averaged methods. Optional cluster-constant sampling weights are
+    supported for point estimation and independent-cluster sandwich inference.
+    Includes a compact clustered-data simulator.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Imports: Rcpp (>= 1.0.0), stats, tibble
+LinkingTo: Rcpp
+Suggests: testthat (>= 3.0.0)
+SystemRequirements: C++17
+NeedsCompilation: yes
+Config/testthat/edition: 3

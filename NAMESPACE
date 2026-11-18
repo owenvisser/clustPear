@@ -1,0 +1,4 @@
+useDynLib(clustPear, .registration = TRUE)
+importFrom(Rcpp, evalCpp)
+export(cluster_pearson)
+export(simulate_clustered)

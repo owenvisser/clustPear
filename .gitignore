@@ -1,0 +1,9 @@
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+*.o
+*.so
+*.dll
+*.exe
+.DS_Store
