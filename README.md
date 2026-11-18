@@ -1,5 +1,36 @@
 # clustPear (working name)
 
+## Installation
+
+The development version of `clustPear` is available
+from GitHub:
+
+```r
+install.packages("remotes")
+remotes::install_github("YOUR_USERNAME/clustPear")
+```
+
+## Example
+
+```r
+library(clustPear)
+
+d <- simulate_clustered()
+
+cluster_pearson(
+  d,
+  cluster = "cluster_id",
+  x = "X",
+  y = "Y",
+  method = "all"
+)
+```
+
+The package provides NW, CW, EQ, and ER estimators
+of marginal Pearson association for clustered data.
+
+## Further Description
+
 Minimal clustered Pearson correlations, implemented with the V11 C++ estimator core.
 
 ```r
