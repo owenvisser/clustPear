@@ -14,9 +14,11 @@
 #'
 #' EQ and ER use the original numeric/ordinal scores for Pearson moments, but
 #' use their ordered distinct values to construct OPW subgroup splits.
-#' All SEs use the independent-cluster sandwich and delta method. EQ/ER
-#' sandwich SEs hold the empirical cutpoints fixed; confidence intervals do not
-#' incorporate cutpoint-selection uncertainty. ER reports whether its evaluated
+#' By default, SEs use the independent-cluster sandwich and delta method.
+#' With `survey_design`, SEs use the full survey's strata/PSUs through a
+#' Taylor-linearized survey total. EQ/ER SEs hold the empirical cutpoints fixed
+#' in both modes; confidence intervals do not incorporate cutpoint-selection
+#' uncertainty. ER reports whether its evaluated
 #' rank grid was exhaustive or capped; a capped ER result is an approximation.
 #'
 #' @param data A data frame containing the cluster ID, X, and Y columns.
@@ -27,15 +29,27 @@
 #' @param er_max_pairs Maximum evaluated split pairs for ER. If its exhaustive
 #'   grid exceeds this budget, a deterministic rank-grid approximation is used.
 #' @param conf_level Nominal confidence level; 0.95 by default.
+#' @param survey_design Optional person-level `survey::svydesign()` object.
+#'   When supplied, point estimates use the design weights and standard errors
+#'   use stratified-PSU Taylor linearization via `survey::svytotal()`.
+#'   The design must contain all sampled persons with positive examination
+#'   weights, including those outside the dental or age analysis domain. It
+#'   must contain exactly one row per person. Cannot be combined with
+#'   `survey_weights`. Requires the suggested `survey` package.
+#' @param survey_id Name of the person identifier in the design; defaults
+#'   to the value of `cluster` (e.g., `SEQN` for NHANES).
 #' @param survey_weights Optional positive cluster-constant sampling weights.
 #'   Specify a column name as a string, or a numeric vector of length
 #'   `nrow(data)` (one weight for each row). Default `NULL` uses equal
 #'   cluster sampling weights, as in the original package. Weights modify
 #'   the estimating equations; they are *not* multiplied into X or Y.
 #'   The resulting SE remains an independent-cluster sandwich SE, not a
-#'   complex-survey-design SE accounting for strata or PSUs.
-#' @return A plain data.frame with correlation estimates, sandwich SEs,
-#'   confidence bounds, cluster counts, and ER exactness status.
+#'   complex-survey-design SE accounting for strata or PSUs. To obtain such
+#'   SEs, pass a complete person-level `survey_design` instead.
+#' @return A plain data.frame with correlation estimates, standard errors,
+#'   confidence bounds, cluster counts, and ER exactness status. Survey mode
+#'   additionally returns `variance_method`, `design_df`, and the original
+#'   independent-patient sandwich SE as `se_independent` for comparison.
 #' @export
 #' @examples
 #' d <- simulate_clustered()
@@ -46,7 +60,8 @@ cluster_pearson <- function(
   x_type = "continuous", y_type = "continuous",
   method = "all", K = 20L,
   er_max_pairs = 100000L, conf_level = 0.95,
-  survey_weights = NULL
+  survey_weights = NULL,
+  survey_design = NULL, survey_id = cluster
 ) {
   if (!is.data.frame(data)) {
     stop("data must be a data frame", call. = FALSE)
@@ -137,9 +152,18 @@ cluster_pearson <- function(
     stop(label, " must be numeric, logical, factor, or character", call. = FALSE)
   }
 
-  weighted <- !is.null(survey_weights)
-
-  if (weighted) {
+  if (!is.null(survey_design) && !is.null(survey_weights)) {
+    stop("Provide either survey_design (design-based SEs) or survey_weights (independent-cluster SEs), not both", call. = FALSE)
+  }
+  weighted <- !is.null(survey_weights) || !is.null(survey_design)
+  survey_info <- NULL
+  if (!is.null(survey_design)) {
+    survey_info <- .clustpear_validate_design(survey_design, survey_id)
+    target_id <- as.character(data[[cluster]])
+    pos <- match(target_id, survey_info$ids)
+    w <- rep.int(NA_real_, nrow(data))
+    w[!is.na(pos)] <- survey_info$weights[pos[!is.na(pos)]]
+  } else if (weighted) {
     if (
       is.character(survey_weights) &&
       length(survey_weights) == 1L &&
@@ -167,6 +191,10 @@ cluster_pearson <- function(
   ids <- data[[cluster]]
 
   keep <- !is.na(ids) & is.finite(xs) & is.finite(ys)
+  cluster_ids <- unique(as.character(ids[keep]))
+  if (!is.null(survey_info) && anyNA(match(cluster_ids, survey_info$ids))) {
+    stop("Some analysis clusters are missing from survey_design; ensure its full person frame contains the dental participants", call. = FALSE)
+  }
 
   ids <- match(ids[keep], unique(ids[keep]))
   xs <- xs[keep]
@@ -206,17 +234,31 @@ cluster_pearson <- function(
     )
   }
 
-  quant <- stats::qnorm((1 + conf_level) / 2)
+  ses <- as.numeric(z$se)
+  if (is.null(survey_info)) {
+    quant <- stats::qnorm((1 + conf_level) / 2)
+  } else {
+    ses <- .clustpear_design_se(
+      survey_info$design, survey_info$ids, cluster_ids, z$linearized
+    )
+    quant <- stats::qt((1 + conf_level) / 2, df = survey_info$df)
+  }
 
-  data.frame(
+  ans <- data.frame(
     method = as.character(z$method),
     pearson = as.numeric(z$estimate),
-    se = as.numeric(z$se),
-    lower = as.numeric(z$estimate) - quant * as.numeric(z$se),
-    upper = as.numeric(z$estimate) + quant * as.numeric(z$se),
+    se = ses,
+    lower = as.numeric(z$estimate) - quant * ses,
+    upper = as.numeric(z$estimate) + quant * ses,
     n_clusters = rep.int(z$clusters, length(requested)),
     n_obs = rep.int(z$observations, length(requested)),
     er_exact = as.logical(z$er_exact),
     row.names = NULL
   )
+  if (!is.null(survey_info)) {
+    ans$variance_method <- "survey_taylor"
+    ans$design_df <- survey_info$df
+    ans$se_independent <- as.numeric(z$se)
+  }
+  ans
 }

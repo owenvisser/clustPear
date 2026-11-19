@@ -1,16 +1,17 @@
-# NHANES example (not part of the installed package)
+# NHANES examples (not part of the installed package)
 
-Copy `20_nhanes_clustPear_example.R` to the existing OPW research project's
-`scripts/` directory and run `source("scripts/20_nhanes_clustPear_example.R")`
-from that project root after installing clustPear. It loads the project's
-existing prepared data and computes generic **unweighted** patient-cluster
-correlations for one age group and outcome pair, without touching the
-existing NHANES manuscript outputs. Change `age_group`, `x`, `y`, `K` in the
-script to try another combination.
+`20_nhanes_clustPear_example.R` is an unweighted exploratory example using
+prepared tooth data. It does **not** produce design-based NHANES standard errors.
 
-Do **not** use the package output as NHANES survey-design inference. The
-existing manuscript workflow incorporates `WTMEC4YR`, `SDMVSTRA`, `SDMVPSU`
-and stratified delete-one-PSU jackknife; clustPear does not. Additionally,
-the generic engine retains singleton patient clusters and caps the example
-ER calculation at 8,192 pairs, so even point estimates are not directly
-comparable without controlling those differences.
+For the journal analysis use `survey_design` as documented in the package's
+root README. Build the R `survey::svydesign()` object from the complete merged
+MEC person file, *before* filtering to adults, examined dental participants,
+10+ surviving teeth, age groups, or complete paired records. Then use the
+eligible tooth data in `cluster_pearson(..., survey_design = full_design)`.
+
+The accompanying research-script bundle includes
+`scripts/04_nhanes_clustPear_survey.R` and
+`scripts/08_make_nhanes_tables.R`. These calculate the survey-Taylor standard
+errors and write the corresponding manuscript tables. The optional
+`04b_nhanes_design_JKn.R` reruns cutpoints inside PSU replicates for a
+potential sensitivity analysis; it is slower and not the default estimator.

@@ -144,20 +144,22 @@ List cluster_cor_weighted_cpp(IntegerVector id,
       indices.emplace_back(p, false);
   }
   NumericVector estimates(requested.size()), ses(requested.size());
+  NumericMatrix linearized(M, requested.size());
   LogicalVector er_exact(requested.size(), NA_LOGICAL);
   IntegerVector pairs_used(requested.size(), NA_INTEGER);
   for (size_t j = 0; j < requested.size(); j++) {
     const auto& met = requested[j];
     Estimate z;
+    std::vector<double> influence;
     if (met == "NW" || met == "CW")
-      z = clustpear_weighted::moment_estimator(patients, weights, met == "CW");
+      z = clustpear_weighted::moment_estimator(patients, weights, met == "CW", &influence);
     else if (met == "EQ") {
       const auto pairs = clustpear_weighted::eq_pairs(patients, K);
-      z = clustpear_weighted::pair_average(indices, weights, pairs);
+      z = clustpear_weighted::pair_average(indices, weights, pairs, &influence);
     } else if (met == "ER") {
       bool exact = false;
       const auto pairs = clustpear_weighted::er_pairs(patients, max_pairs, exact);
-      z = clustpear_weighted::pair_average(indices, weights, pairs);
+      z = clustpear_weighted::pair_average(indices, weights, pairs, &influence);
       er_exact[j] = exact;
       pairs_used[j] = int(pairs.size());
     } else
@@ -166,10 +168,15 @@ List cluster_cor_weighted_cpp(IntegerVector id,
       stop("Weighted correlation or sandwich SE undefined; check outcome variation");
     estimates[j] = z.estimate;
     ses[j] = z.se;
+    if (int(influence.size()) != M)
+      stop("Internal error: missing patient linearization");
+    for (int i = 0; i < M; i++)
+      linearized(i, j) = influence[i];
   }
   return List::create(_["method"] = methods,
                       _["estimate"] = estimates,
                       _["se"] = ses,
+                      _["linearized"] = linearized,
                       _["er_exact"] = er_exact,
                       _["pairs_evaluated"] = pairs_used,
                       _["clusters"] = M,

@@ -29,6 +29,55 @@ cluster_pearson(
 The package provides NW, CW, EQ, and ER estimators
 of marginal Pearson association for clustered data.
 
+## NHANES complex-survey inference (new in 0.1.3)
+
+The `survey_weights` argument **only** provides unequal-weight point estimates
+and independent-patient sandwich SEs. **Survey weights by themselves do not
+identify sampling strata and PSUs.** For correct NHANES-style design-based
+variance, supply a `survey_design` created on the *full MEC person sample* before
+age, dental eligibility, or complete-pair restrictions.
+
+```r
+library(survey)
+library(clustPear)
+
+# person: one record per SEQN in both 2011–12 and 2013–14 DEMO files;
+# include all positive-weight MEC examinees, not only dental participants.
+person$WTMEC4YR <- person$WTMEC2YR / 2
+person <- subset(person, is.finite(WTMEC4YR) & WTMEC4YR > 0 &
+                        !is.na(SDMVSTRA) & !is.na(SDMVPSU))
+
+design <- svydesign(
+  ids = ~SDMVPSU, strata = ~SDMVSTRA, weights = ~WTMEC4YR,
+  data = person, nest = TRUE
+)
+
+# teeth: eligible tooth-level data, with any age restriction already applied.
+fit <- cluster_pearson(
+  teeth, cluster = "SEQN", x = "CAL", y = "DFS",
+  method = "all", K = 20, survey_design = design
+)
+```
+
+`survey_design` provides the weights automatically, so **do not also pass
+`survey_weights`**. The result includes `variance_method = "survey_taylor"`
+and `design_df`, plus `se_independent` for comparison. Confidence intervals use a Student-t reference distribution
+with the survey design degrees of freedom. The design remains intact, with
+zero contributions for persons outside the eligible dental/age domain.
+
+NW uses the appropriate weighted ratio linearization for varying tooth counts.
+CW, EQ, and ER use patient-normalized moment contributions; EQ/ER average
+patient influence contributions *before* computing the design variance so the
+covariance of dichotomization-specific correlations is included.
+
+**Limitation:** Taylor linearization treats the empirically selected EQ/ER
+cutpoints as fixed. The method accounts for sampling weights, strata, PSUs and
+within-mouth contributions, but not for additional variation from learning
+cutpoints on a new sample. Use a fully recalculated PSU replication analysis
+as a sensitivity analysis if that uncertainty matters. It does not recover
+the distribution of already lost teeth.
+
+
 ## Further Description
 
 Minimal clustered Pearson correlations, implemented with the V11 C++ estimator core.
@@ -66,13 +115,13 @@ The simulated `d` is a **tibble**, so printing it shows a compact preview rather
 - `CW`: Pearson correlation with equal total contribution from each cluster.
 - `EQ`: average of OPW Pearson correlations over a selected distinct-rank cutpoint grid (`K=20` default).
 - `ER`: average over all distinct-rank cutpoint pairs if within `er_max_pairs`; otherwise deterministic capped rank-grid approximation.
-- All SEs: independent-cluster delta-method sandwich. EQ and ER treat empirical cutpoints as fixed. CI: `estimate +/- qnorm((1+level)/2) * se`, not a survey-design interval.
+- Default or `survey_weights` SEs: independent-cluster delta-method sandwich and normal CIs. When `survey_design` is used: stratified-PSU Taylor-linearized SEs and survey-t CIs. Both modes treat empirical EQ/ER cutpoints as fixed.
 - A categorical variable is converted to numeric scores. Binary categorical is valid (phi when both binary). For more than two unordered categories, Pearson depends on arbitrary ordering and should be interpreted only if scores/order are meaningful.
 - `cluster`, `x`, and `y` are the only required input columns (plus `survey_weights` if supplied). All other columns are ignored. Rows with missing IDs or missing X/Y are dropped; singleton clusters are retained. At least two clusters and nonconstant X/Y are required.
 - ER approximation status is in `er_exact`; `FALSE` means numerical ER reference rather than exhaustive averaging.
 - Optional `survey_weights` adjusts the estimating equations using **one constant positive sampling weight per cluster**; it does not multiply weights into the outcomes. Supply a column name or row-aligned numeric vector.
-- Weighted SEs still use a **patient/cluster-independent sandwich**; this is **not** a stratified-PSU NHANES design variance or a publication-ready NHANES confidence interval. Apply survey replication (e.g. a justified PSU jackknife) in a separate analysis script.
-- The package does not apply dental-specific recoding or automatically implement complex-survey design inference.
+- With `survey_weights` alone, SEs use the **independent-patient sandwich**. Pass `survey_design` for a stratified-PSU Taylor variance and survey t confidence interval. They cannot be passed together.
+- The package does not apply dental-specific recoding. Complex-survey inference requires an explicitly supplied full person-level `survey_design` and the optional `survey` package.
 
 ## Before publication
 

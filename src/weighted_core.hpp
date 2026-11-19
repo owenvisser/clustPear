@@ -20,7 +20,8 @@ using opwsim::dot;
 
 inline Estimate moment_estimator(const std::vector<Patient>& patients,
                                  const std::vector<double>& weights,
-                                 bool cw) {
+                                 bool cw,
+                                 std::vector<double>* linearized = nullptr) {
   const int M = int(patients.size());
   Mom numer;
   double denom = 0.0;
@@ -38,11 +39,14 @@ inline Estimate moment_estimator(const std::vector<Patient>& patients,
   if (!std::isfinite(rho))
     throw std::runtime_error("Undefined weighted correlation");
   const Mom grad = gradient(mean);
+  if (linearized) linearized->assign(M, 0.0);
   double sq = 0.0;
   for (int i = 0; i < M; i++) {
     const Mom contrib = cw ? sums[i] / double(patients[i].nobs) : sums[i];
     const double n = cw ? 1.0 : double(patients[i].nobs);
-    const double infl = dot(grad, contrib - mean * n) * weights[i] / denom;
+    const double unit_infl = dot(grad, contrib - mean * n) / denom;
+    if (linearized) (*linearized)[i] = unit_infl;
+    const double infl = unit_infl * weights[i];
     sq += infl * infl;
   }
   return {rho, std::sqrt(std::max(0.0, double(M) * sq / (M - 1.0)))};
@@ -50,7 +54,8 @@ inline Estimate moment_estimator(const std::vector<Patient>& patients,
 
 inline Estimate pair_average(const std::vector<RankIndex>& indices,
                              const std::vector<double>& weights,
-                             const std::vector<RankPair>& pairs) {
+                             const std::vector<RankPair>& pairs,
+                             std::vector<double>* linearized = nullptr) {
   const int M = int(indices.size()), Q = int(pairs.size());
   if (Q < 1)
     throw std::invalid_argument("No available split pairs");
@@ -69,12 +74,15 @@ inline Estimate pair_average(const std::vector<RankIndex>& indices,
     rho += r;
     grads[q] = gradient(means[q]);
   }
+  if (linearized) linearized->assign(M, 0.0);
   double sq = 0.0;
   for (int i = 0; i < M; i++) {
     double infl = 0.0;
     for (int q = 0; q < Q; q++)
       infl += dot(grads[q], indices[i].query(pairs[q].x, pairs[q].y) - means[q]);
-    infl *= weights[i] / (W * Q);
+    const double unit_infl = infl / (W * Q);
+    if (linearized) (*linearized)[i] = unit_infl;
+    infl = weights[i] * unit_infl;
     sq += infl * infl;
   }
   return {rho / Q, std::sqrt(std::max(0.0, double(M) * sq / (M - 1.0)))};
