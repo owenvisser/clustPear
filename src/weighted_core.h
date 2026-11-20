@@ -1,6 +1,6 @@
 #ifndef CLUSTPEAR_WEIGHTED_CORE_HPP
 #define CLUSTPEAR_WEIGHTED_CORE_HPP
-#include "v11_core.hpp"
+#include "core.h"
 #include <utility>
 
 // Cluster-constant sampling weights multiply the estimating-equation

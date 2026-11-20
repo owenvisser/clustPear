@@ -1,8 +1,8 @@
 // [[Rcpp::plugins(cpp17)]]
 #include <Rcpp.h>
 #include <unordered_map>
-#include "v11_core.hpp"
-#include "weighted_core.hpp"
+#include "core.h"
+#include "weighted_core.h"
 
 using namespace Rcpp;
 using namespace opwsim;

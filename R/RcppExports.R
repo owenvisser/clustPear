@@ -2,13 +2,14 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 cluster_cor_cpp <- function(id, x, y, K, max_pairs, methods) {
-  .Call(`_clustPear_cluster_cor_cpp`, id, x, y, K, max_pairs, methods)
+    .Call(`_clustPear_cluster_cor_cpp`, id, x, y, K, max_pairs, methods)
 }
 
 cluster_cor_weighted_cpp <- function(id, x, y, w, K, max_pairs, methods) {
-  .Call(`_clustPear_cluster_cor_weighted_cpp`, id, x, y, w, K, max_pairs, methods)
+    .Call(`_clustPear_cluster_cor_weighted_cpp`, id, x, y, w, K, max_pairs, methods)
 }
 
 simulate_clustered_cpp <- function(M, nmax, rho_uv, eta, sigma2, tau2, seed) {
-  .Call(`_clustPear_simulate_clustered_cpp`, M, nmax, rho_uv, eta, sigma2, tau2, seed)
+    .Call(`_clustPear_simulate_clustered_cpp`, M, nmax, rho_uv, eta, sigma2, tau2, seed)
 }
+

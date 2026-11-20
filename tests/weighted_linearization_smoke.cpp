@@ -1,5 +1,5 @@
-#include "../src/v11_core.hpp"
-#include "../src/weighted_core.hpp"
+#include "../src/core.h"
+#include "../src/weighted_core.h"
 #include <cassert>
 #include <cmath>
 #include <iostream>

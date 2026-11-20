@@ -2,13 +2,15 @@
 
 ## Installation
 
-The development version of `clustPear` is available
-from GitHub:
+Install the local development source from the `clustPear/` package directory:
 
 ```r
-install.packages("remotes")
-remotes::install_github("YOUR_USERNAME/clustPear")
+install.packages(c("Rcpp", "tibble", "remotes"))
+remotes::install_local("path/to/clustPear", dependencies = TRUE)
 ```
+
+The repository URL and maintainer details are placeholders until the package
+is published; do not use an unconfigured GitHub installation link.
 
 ## Example
 

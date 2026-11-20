@@ -298,7 +298,7 @@ struct Estimate {
   double se = std::numeric_limits<double>::quiet_NaN();
 };
 // Cumulative mean and sandwich IF across all selected binary split correlations.
-inline Estimate evaluate(const std::vector<Feature>& patients, int method, int K) {
+inline Estimate evaluate(const std::vector<Feature>& patients, int method, int /*K*/) {
   int M = int(patients.size());
   if (M < 2)
     return {};
